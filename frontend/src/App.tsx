@@ -10,7 +10,6 @@ type Conversation = {
   id: number;
   title: string;
   created_at: string;
-  messages?: Message[];
 };
 
 function App() {
@@ -48,21 +47,83 @@ function App() {
     }
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!input.trim()) return;
 
     const userMessage: Message = { role: 'user', content: input };
-    setMessages((prev) => [...prev, userMessage]);
+    const messageContent = input;
     setInput('');
 
-    // Hard-coded response
-    setTimeout(() => {
-      const assistantMessage: Message = {
-        role: 'assistant',
-        content: 'This is a hard-coded response.',
-      };
-      setMessages((prev) => [...prev, assistantMessage]);
-    }, 500);
+    try {
+      let conversationId = activeConversationId;
+
+      // If no active conversation, create a new one
+      if (!conversationId) {
+        const createRes = await fetch('http://localhost:8100/conversations/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: null }), // Temporary title
+        });
+        const newConversation = await createRes.json();
+        conversationId = newConversation.id;
+
+        // Update the conversation title to "Conversation {id}"
+        const updateRes = await fetch(
+          `http://localhost:8100/conversations/${conversationId}`,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ...newConversation,
+              title: `Conversation ${conversationId}`,
+            }),
+          },
+        );
+        const updatedConversation = await updateRes.json();
+
+        setActiveConversationId(conversationId);
+        setConversations((prev) => [updatedConversation, ...prev]);
+      }
+
+      // Create the user message
+      await fetch(
+        `http://localhost:8100/conversations/${conversationId}/messages`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            role: 'user',
+            content: messageContent,
+          }),
+        },
+      );
+
+      setMessages((prev) => [...prev, userMessage]);
+
+      // Hard-coded response
+      setTimeout(async () => {
+        const assistantMessage: Message = {
+          role: 'assistant',
+          content: 'This is a hard-coded response.',
+        };
+
+        await fetch(
+          `http://localhost:8100/conversations/${conversationId}/messages`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              role: 'assistant',
+              content: 'This is a hard-coded response.',
+            }),
+          },
+        );
+
+        setMessages((prev) => [...prev, assistantMessage]);
+      }, 500);
+    } catch (err) {
+      console.error('Error sending message:', err);
+    }
   };
 
   const handleNewChat = () => {

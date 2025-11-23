@@ -58,6 +58,25 @@ def read_conversation(
     return conversation
 
 
+@app.put("/conversations/{conversation_id}", response_model=Conversation)
+def update_conversation(
+    conversation_id: int,
+    conversation_update: Conversation,
+    session: Session = Depends(get_session),
+):
+    conversation = session.get(Conversation, conversation_id)
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    if conversation_update.title is not None:
+        conversation.title = conversation_update.title
+
+    session.add(conversation)
+    session.commit()
+    session.refresh(conversation)
+    return conversation
+
+
 @app.get(
     "/conversations/{conversation_id}/messages", response_model=List[Message]
 )
@@ -69,6 +88,23 @@ def read_conversation_messages(
         raise HTTPException(status_code=404, detail="Conversation not found")
 
     return conversation.messages
+
+
+@app.post("/conversations/{conversation_id}/messages", response_model=Message)
+def create_message(
+    conversation_id: int,
+    message: Message,
+    session: Session = Depends(get_session),
+):
+    conversation = session.get(Conversation, conversation_id)
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    message.conversation_id = conversation_id
+    session.add(message)
+    session.commit()
+    session.refresh(message)
+    return message
 
 
 @app.delete("/conversations/{conversation_id}")
