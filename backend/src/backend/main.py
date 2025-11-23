@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select
 
 from .database import create_db_and_tables, get_session, seed_db
-from .models import Conversation
+from .models import Conversation, Message
 
 
 @asynccontextmanager
@@ -56,6 +56,19 @@ def read_conversation(
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
     return conversation
+
+
+@app.get(
+    "/conversations/{conversation_id}/messages", response_model=List[Message]
+)
+def read_conversation_messages(
+    conversation_id: int, session: Session = Depends(get_session)
+):
+    conversation = session.get(Conversation, conversation_id)
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    return conversation.messages
 
 
 @app.delete("/conversations/{conversation_id}")

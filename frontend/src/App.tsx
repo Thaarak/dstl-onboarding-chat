@@ -1,13 +1,52 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 type Message = {
+  id?: number;
   role: 'user' | 'assistant';
   content: string;
 };
 
+type Conversation = {
+  id: number;
+  title: string;
+  created_at: string;
+  messages?: Message[];
+};
+
 function App() {
+  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
+  const [activeConversationId, setActiveConversationId] = useState<
+    number | null
+  >(null);
+
+  useEffect(() => {
+    const fetchConversations = async () => {
+      try {
+        const res = await fetch('http://localhost:8100/conversations/');
+        const data = await res.json();
+        setConversations(data);
+      } catch (err) {
+        console.error('Error fetching conversations:', err);
+      }
+    };
+
+    fetchConversations();
+  }, []);
+
+  const loadConversation = async (id: number) => {
+    try {
+      const res = await fetch(
+        `http://localhost:8100/conversations/${id}/messages`,
+      );
+      const data = await res.json();
+      setMessages(data || []);
+      setActiveConversationId(id);
+    } catch (err) {
+      console.error('Error loading conversation:', err);
+    }
+  };
 
   const handleSend = () => {
     if (!input.trim()) return;
@@ -26,6 +65,11 @@ function App() {
     }, 500);
   };
 
+  const handleNewChat = () => {
+    setMessages([]);
+    setActiveConversationId(null);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -42,13 +86,25 @@ function App() {
         </div>
         <button
           className='w-full py-2 px-4 border border-gray-600 rounded hover:bg-gray-800 text-left mb-4'
-          onClick={() => setMessages([])}
+          onClick={handleNewChat}
         >
           + New Chat
         </button>
-        <div className='flex-1 overflow-y-auto'>
-          {/* Chat history list would go here */}
-          <div className='text-sm text-gray-400'>Previous chats...</div>
+        <div className='flex-1 overflow-y-auto space-y-2'>
+          {conversations.map((conv) => (
+            <div
+              key={conv.id}
+              className={`p-2 rounded cursor-pointer hover:bg-gray-800 ${
+                activeConversationId === conv.id ? 'bg-gray-800' : ''
+              }`}
+              onClick={() => loadConversation(conv.id)}
+            >
+              {conv.title || `Conversation ${conv.id}`}
+            </div>
+          ))}
+          {conversations.length === 0 && (
+            <div className='text-sm text-gray-400'>No conversations yet</div>
+          )}
         </div>
       </div>
 
