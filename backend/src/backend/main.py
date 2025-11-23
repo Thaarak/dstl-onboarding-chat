@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select
 
 from .database import create_db_and_tables, get_session, seed_db
+from .llm import generate_llm_response
 from .models import Conversation, Message
 
 
@@ -17,7 +18,6 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
-
 
 app.add_middleware(
     CORSMiddleware,
@@ -100,10 +100,46 @@ def create_message(
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
+    # Save the user's message
     message.conversation_id = conversation_id
     session.add(message)
     session.commit()
     session.refresh(message)
+
+    # Only generate assistant response for user messages
+    if message.role == "user":
+        # Get all messages in the conversation via relationship
+        all_messages = conversation.messages
+
+        # Sort messages by ID to maintain chronological order
+        all_messages = sorted(all_messages, key=lambda m: m.id or 0)
+
+        # Build message history for the LLM
+        messages_for_llm = [
+            {"role": msg.role, "content": msg.content} for msg in all_messages
+        ]
+
+        # Call the LLM
+        try:
+            response_content = generate_llm_response(messages_for_llm)
+
+            # Create and save the assistant's response
+            assistant_message = Message(
+                conversation_id=conversation_id,
+                role="assistant",
+                content=response_content,
+            )
+            session.add(assistant_message)
+            session.commit()
+            session.refresh(assistant_message)
+
+            return assistant_message
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error generating LLM response: {str(e)}",
+            )
+
     return message
 
 

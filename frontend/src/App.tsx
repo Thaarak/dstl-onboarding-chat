@@ -85,8 +85,8 @@ function App() {
         setConversations((prev) => [updatedConversation, ...prev]);
       }
 
-      // Create the user message
-      await fetch(
+      // Create the user message and get LLM response
+      const messageRes = await fetch(
         `http://localhost:8100/conversations/${conversationId}/messages`,
         {
           method: 'POST',
@@ -98,29 +98,11 @@ function App() {
         },
       );
 
-      setMessages((prev) => [...prev, userMessage]);
+      // Backend returns the assistant's response
+      const assistantMessage = await messageRes.json();
 
-      // Hard-coded response
-      setTimeout(async () => {
-        const assistantMessage: Message = {
-          role: 'assistant',
-          content: 'This is a hard-coded response.',
-        };
-
-        await fetch(
-          `http://localhost:8100/conversations/${conversationId}/messages`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              role: 'assistant',
-              content: 'This is a hard-coded response.',
-            }),
-          },
-        );
-
-        setMessages((prev) => [...prev, assistantMessage]);
-      }, 500);
+      // Update UI with both messages
+      setMessages((prev) => [...prev, userMessage, assistantMessage]);
     } catch (err) {
       console.error('Error sending message:', err);
     }
