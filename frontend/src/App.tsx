@@ -1,16 +1,6 @@
 import { useState, useEffect } from 'react';
-
-type Message = {
-  id?: number;
-  role: 'user' | 'assistant';
-  content: string;
-};
-
-type Conversation = {
-  id: number;
-  title: string;
-  created_at: string;
-};
+import { Markdown } from './Markdown';
+import { api, type Message, type Conversation } from './api';
 
 function App() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -23,8 +13,7 @@ function App() {
   useEffect(() => {
     const fetchConversations = async () => {
       try {
-        const res = await fetch('http://localhost:8100/conversations/');
-        const data = await res.json();
+        const data = await api.getConversations();
         setConversations(data);
       } catch (err) {
         console.error('Error fetching conversations:', err);
@@ -36,10 +25,7 @@ function App() {
 
   const loadConversation = async (id: number) => {
     try {
-      const res = await fetch(
-        `http://localhost:8100/conversations/${id}/messages`,
-      );
-      const data = await res.json();
+      const data = await api.getConversationMessages(id);
       setMessages(data || []);
       setActiveConversationId(id);
     } catch (err) {
@@ -59,47 +45,29 @@ function App() {
 
       // If no active conversation, create a new one
       if (!conversationId) {
-        const createRes = await fetch('http://localhost:8100/conversations/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: null }), // Temporary title
-        });
-        const newConversation = await createRes.json();
+        const newConversation = await api.createConversation(null);
         conversationId = newConversation.id;
 
         // Update the conversation title to "Conversation {id}"
-        const updateRes = await fetch(
-          `http://localhost:8100/conversations/${conversationId}`,
+        const updatedConversation = await api.updateConversation(
+          conversationId,
           {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              ...newConversation,
-              title: `Conversation ${conversationId}`,
-            }),
+            ...newConversation,
+            title: `Conversation ${conversationId}`,
           },
         );
-        const updatedConversation = await updateRes.json();
 
         setActiveConversationId(conversationId);
         setConversations((prev) => [updatedConversation, ...prev]);
       }
 
       // Create the user message and get LLM response
-      const messageRes = await fetch(
-        `http://localhost:8100/conversations/${conversationId}/messages`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            role: 'user',
-            content: messageContent,
-          }),
-        },
-      );
-
       // Backend returns the assistant's response
-      const assistantMessage = await messageRes.json();
+      const assistantMessage = await api.sendMessage(
+        conversationId,
+        'user',
+        messageContent,
+      );
 
       // Update UI with both messages
       setMessages((prev) => [...prev, userMessage, assistantMessage]);
@@ -169,7 +137,7 @@ function App() {
                     : 'bg-white border border-gray-200 text-gray-800'
                 }`}
               >
-                {msg.content}
+                <Markdown content={msg.content} role={msg.role} />
               </div>
             </div>
           ))}
