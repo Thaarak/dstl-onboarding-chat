@@ -1,5 +1,5 @@
 # this is intentional, don't remove this!
-backend/static
+backend/src/backend/static
 
 database.db
 
