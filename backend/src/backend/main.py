@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import List
 
 from fastapi import Depends, FastAPI, HTTPException
@@ -28,7 +29,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.mount("", StaticFiles(directory="backend/static"), name="static")
+# Get the directory where this file is located
+BASE_DIR = Path(__file__).resolve().parent
+STATIC_DIR = BASE_DIR / "static"
+
+app.mount("", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
 @app.post("/conversations/", response_model=Conversation)
