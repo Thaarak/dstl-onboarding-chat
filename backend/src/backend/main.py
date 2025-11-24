@@ -1,7 +1,9 @@
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import List
 
+from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -10,6 +12,11 @@ from sqlmodel import Session, select
 from .database import create_db_and_tables, get_session, seed_db
 from .llm import generate_llm_response
 from .models import Conversation, Message
+
+load_dotenv()
+
+# Get the directory where this file is located
+BASE_DIR = Path(__file__).resolve().parent
 
 
 @asynccontextmanager
@@ -29,11 +36,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Get the directory where this file is located
-BASE_DIR = Path(__file__).resolve().parent
-STATIC_DIR = BASE_DIR / "static"
 
-app.mount("", StaticFiles(directory=str(STATIC_DIR)), name="static")
+if os.environ.get("ENVIRONMENT") == "production":
+    app.mount(
+        "", StaticFiles(directory=str(BASE_DIR / "static")), name="static"
+    )
 
 
 @app.post("/conversations/", response_model=Conversation)
