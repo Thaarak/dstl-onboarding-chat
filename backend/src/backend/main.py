@@ -39,7 +39,7 @@ app.add_middleware(
 
 if os.environ.get("ENVIRONMENT") == "production":
     app.mount(
-        "", StaticFiles(directory=str(BASE_DIR / "static")), name="static"
+        "/app", StaticFiles(directory=str(BASE_DIR / "static")), name="static"
     )
 
 
