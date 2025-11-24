@@ -3,6 +3,7 @@ from typing import List
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session, select
 
 from .database import create_db_and_tables, get_session, seed_db
@@ -26,6 +27,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.mount("", StaticFiles(directory="backend/static"), name="static")
 
 
 @app.post("/conversations/", response_model=Conversation)
