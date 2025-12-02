@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
 
 const API_BASE_URL = 'http://localhost:8100';
 
@@ -162,7 +163,7 @@ function App() {
                       : 'bg-white border border-gray-200 text-gray-800'
                   }`}
                 >
-                  {msg.content}
+                  <ReactMarkdown>{msg.content}</ReactMarkdown>
                 </div>
               </div>
             ))
