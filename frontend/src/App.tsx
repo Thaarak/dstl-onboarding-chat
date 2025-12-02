@@ -19,6 +19,7 @@ type Conversation = {
 
 function App() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
 
@@ -42,23 +43,44 @@ function App() {
     const response = await fetch(`${API_BASE_URL}/conversations/${conversationId}`);
     const data: Conversation = await response.json();
     setMessages(data.messages);
+    setSelectedConversationId(conversationId);
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!input.trim()) return;
 
-    const userMessage: Message = { role: 'user', content: input };
-    setMessages((prev) => [...prev, userMessage]);
+    const content = input;
     setInput('');
 
-    // Hard-coded response
-    setTimeout(() => {
-      const assistantMessage: Message = {
-        role: 'assistant',
-        content: 'This is a hard-coded response.',
-      };
-      setMessages((prev) => [...prev, assistantMessage]);
-    }, 500);
+    if (selectedConversationId === null) {
+      // Create new conversation
+      const convResponse = await fetch(`${API_BASE_URL}/conversations/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: null })
+      });
+      const newConv: Conversation = await convResponse.json();
+      setSelectedConversationId(newConv.id);
+      setConversations((prev) => [...prev, newConv]);
+
+      // Create message in new conversation
+      const msgResponse = await fetch(`${API_BASE_URL}/conversations/${newConv.id}/messages/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content, role: 'user' })
+      });
+      const newMsg: Message = await msgResponse.json();
+      setMessages([newMsg]);
+    } else {
+      // Add message to existing conversation
+      const msgResponse = await fetch(`${API_BASE_URL}/conversations/${selectedConversationId}/messages/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content, role: 'user' })
+      });
+      const newMsg: Message = await msgResponse.json();
+      setMessages((prev) => [...prev, newMsg]);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -77,7 +99,10 @@ function App() {
         </div>
         <button
           className='w-full py-2 px-4 border border-gray-600 rounded hover:bg-gray-800 text-left mb-4'
-          onClick={() => setMessages([])}
+          onClick={() => {
+            setMessages([]);
+            setSelectedConversationId(null);
+          }}
         >
           + New Chat
         </button>

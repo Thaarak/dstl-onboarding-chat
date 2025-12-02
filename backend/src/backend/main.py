@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select
 
 from .database import create_db_and_tables, get_session, seed_db
-from .models import Conversation
+from .models import Conversation, Message
 
 
 @asynccontextmanager
@@ -72,6 +72,31 @@ def read_conversation(
             }
             for msg in conversation.messages
         ]
+    }
+
+
+@app.post("/conversations/{conversation_id}/messages/")
+def create_message(
+    conversation_id: int, message: Message, session: Session = Depends(get_session)
+):
+    # Verify conversation exists
+    conversation = session.get(Conversation, conversation_id)
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    # Set the conversation_id and add message
+    message.conversation_id = conversation_id
+    session.add(message)
+    session.commit()
+    session.refresh(message)
+
+    # Return message as dictionary
+    return {
+        "id": message.id,
+        "conversation_id": message.conversation_id,
+        "content": message.content,
+        "role": message.role,
+        "created_at": message.created_at
     }
 
 
