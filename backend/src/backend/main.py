@@ -7,6 +7,7 @@ from sqlmodel import Session, select
 
 from .database import create_db_and_tables, get_session, seed_db
 from .models import Conversation, Message
+from .llm_client import generate_llm_response
 
 
 @asynccontextmanager
@@ -84,19 +85,45 @@ def create_message(
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
-    # Set the conversation_id and add message
+    # Save user message
     message.conversation_id = conversation_id
     session.add(message)
     session.commit()
     session.refresh(message)
 
-    # Return message as dictionary
+    # Get all messages in conversation for LLM context
+    all_messages = conversation.messages
+    llm_messages = [{"role": msg.role, "content": msg.content} for msg in all_messages]
+
+    # Generate LLM response
+    llm_response_content = generate_llm_response(llm_messages)
+
+    # Save assistant message
+    assistant_message = Message(
+        conversation_id=conversation_id,
+        role="assistant",
+        content=llm_response_content
+    )
+    session.add(assistant_message)
+    session.commit()
+    session.refresh(assistant_message)
+
+    # Return both messages
     return {
-        "id": message.id,
-        "conversation_id": message.conversation_id,
-        "content": message.content,
-        "role": message.role,
-        "created_at": message.created_at
+        "user_message": {
+            "id": message.id,
+            "conversation_id": message.conversation_id,
+            "content": message.content,
+            "role": message.role,
+            "created_at": message.created_at
+        },
+        "assistant_message": {
+            "id": assistant_message.id,
+            "conversation_id": assistant_message.conversation_id,
+            "content": assistant_message.content,
+            "role": assistant_message.role,
+            "created_at": assistant_message.created_at
+        }
     }
 
 

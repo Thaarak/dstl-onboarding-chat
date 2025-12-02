@@ -52,6 +52,10 @@ function App() {
     const content = input;
     setInput('');
 
+    // Show user message immediately
+    const userMessage: Message = { role: 'user', content };
+    setMessages((prev) => [...prev, userMessage]);
+
     if (selectedConversationId === null) {
       // Create new conversation
       const convResponse = await fetch(`${API_BASE_URL}/conversations/`, {
@@ -69,8 +73,9 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content, role: 'user' })
       });
-      const newMsg: Message = await msgResponse.json();
-      setMessages([newMsg]);
+      const response = await msgResponse.json();
+      // Add assistant response (user message already shown)
+      setMessages((prev) => [...prev, response.assistant_message]);
     } else {
       // Add message to existing conversation
       const msgResponse = await fetch(`${API_BASE_URL}/conversations/${selectedConversationId}/messages/`, {
@@ -78,8 +83,9 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content, role: 'user' })
       });
-      const newMsg: Message = await msgResponse.json();
-      setMessages((prev) => [...prev, newMsg]);
+      const response = await msgResponse.json();
+      // Add assistant response (user message already shown)
+      setMessages((prev) => [...prev, response.assistant_message]);
     }
   };
 
