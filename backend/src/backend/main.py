@@ -48,14 +48,31 @@ def read_conversations(
     return conversations
 
 
-@app.get("/conversations/{conversation_id}", response_model=Conversation)
+@app.get("/conversations/{conversation_id}")
 def read_conversation(
     conversation_id: int, session: Session = Depends(get_session)
 ):
+    # Get the conversation from the database
     conversation = session.get(Conversation, conversation_id)
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
-    return conversation
+
+    # Return conversation data as a simple dictionary
+    return {
+        "id": conversation.id,
+        "title": conversation.title,
+        "created_at": conversation.created_at,
+        "messages": [
+            {
+                "id": msg.id,
+                "conversation_id": msg.conversation_id,
+                "content": msg.content,
+                "role": msg.role,
+                "created_at": msg.created_at
+            }
+            for msg in conversation.messages
+        ]
+    }
 
 
 @app.delete("/conversations/{conversation_id}")

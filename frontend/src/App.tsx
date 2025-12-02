@@ -1,13 +1,48 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+
+const API_BASE_URL = 'http://localhost:8100';
 
 type Message = {
+  id?: number;
   role: 'user' | 'assistant';
   content: string;
+  created_at?: string;
+  conversation_id?: number;
+};
+
+type Conversation = {
+  id: number;
+  title: string | null;
+  created_at: string;
+  messages: Message[];
 };
 
 function App() {
+  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
+
+  // Fetch conversations on mount
+  useEffect(() => {
+    fetchConversations();
+  }, []);
+
+  const fetchConversations = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/conversations/`);
+      if (!response.ok) throw new Error('Failed to fetch conversations');
+      const data = await response.json();
+      setConversations(data);
+    } catch (error) {
+      console.error('Error fetching conversations:', error);
+    }
+  };
+
+  const loadConversation = async (conversationId: number) => {
+    const response = await fetch(`${API_BASE_URL}/conversations/${conversationId}`);
+    const data: Conversation = await response.json();
+    setMessages(data.messages);
+  };
 
   const handleSend = () => {
     if (!input.trim()) return;
@@ -47,8 +82,26 @@ function App() {
           + New Chat
         </button>
         <div className='flex-1 overflow-y-auto'>
-          {/* Chat history list would go here */}
-          <div className='text-sm text-gray-400'>Previous chats...</div>
+          {conversations.length === 0 ? (
+            <div className='text-sm text-gray-400'>No conversations yet</div>
+          ) : (
+            <div className='space-y-2'>
+              {conversations.map((conv) => (
+                <button
+                  key={conv.id}
+                  onClick={() => loadConversation(conv.id)}
+                  className='w-full text-left p-3 rounded hover:bg-gray-800'
+                >
+                  <div className='text-sm font-medium truncate'>
+                    {conv.title || `Conversation ${conv.id}`}
+                  </div>
+                  <div className='text-xs text-gray-400 mt-1'>
+                    {new Date(conv.created_at).toLocaleDateString()}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -56,31 +109,32 @@ function App() {
       <div className='flex-1 flex flex-col'>
         {/* Messages Area */}
         <div className='flex-1 overflow-y-auto p-4 space-y-4'>
-          {messages.map((msg, index) => (
-            <div
-              key={index}
-              className={`flex ${
-                msg.role === 'user' ? 'justify-end' : 'justify-start'
-              }`}
-            >
-              <div
-                className={`max-w-[70%] rounded-lg p-3 ${
-                  msg.role === 'user'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-white border border-gray-200 text-gray-800'
-                }`}
-              >
-                {msg.content}
-              </div>
-            </div>
-          ))}
-          {messages.length === 0 && (
+          {messages.length === 0 ? (
             <div className='text-center text-gray-500 mt-20'>
               <h2 className='text-2xl font-semibold'>
                 Welcome to the DSTL Chat App
               </h2>
               <p>Start a conversation!</p>
             </div>
+          ) : (
+              messages.map((msg, index) => (
+              <div
+                key={msg.id || index}
+                className={`flex ${
+                  msg.role === 'user' ? 'justify-end' : 'justify-start'
+                }`}
+              >
+                <div
+                  className={`max-w-[70%] rounded-lg p-3 ${
+                    msg.role === 'user'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-white border border-gray-200 text-gray-800'
+                  }`}
+                >
+                  {msg.content}
+                </div>
+              </div>
+            ))
           )}
         </div>
 
